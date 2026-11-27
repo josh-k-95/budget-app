@@ -33,7 +33,7 @@ target-version = "py313"
 select = ["E", "W", "F", "I", "UP", "B", "SIM", "S"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "S106"]
+"tests/**" = ["S101", "S105", "S106"]
 
 [tool.ruff.lint.isort]
 # The local alembic/ migrations folder would otherwise make the alembic package look first-party.

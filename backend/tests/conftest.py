@@ -13,9 +13,10 @@ import pytest  # noqa: E402
 from alembic import command  # noqa: E402
 from alembic.config import Config  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
-from sqlalchemy import Engine, create_engine, text  # noqa: E402
+from sqlalchemy import Engine, create_engine, inspect, text  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
+from app.config import Settings  # noqa: E402
 from app.main import create_app  # noqa: E402
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -53,7 +54,37 @@ def db(engine: Engine) -> Iterator[Session]:
         trans.rollback()
 
 
+@pytest.fixture(autouse=True)
+def clean_db(engine: Engine) -> Iterator[None]:
+    """API tests commit through the app, so wipe all data after each test."""
+    yield
+    tables = [t for t in inspect(engine).get_table_names() if t != "alembic_version"]
+    if tables:
+        with engine.begin() as conn:
+            conn.execute(text(f"TRUNCATE {', '.join(tables)} CASCADE"))
+
+
+LOCAL_URL = "http://localhost:8000"
+
+
+def make_client(
+    settings: Settings | None = None,
+    base_url: str = LOCAL_URL,
+    origin: str | None = LOCAL_URL,
+    client_ip: str = "203.0.113.10",
+) -> TestClient:
+    """TestClient that looks like a same-origin browser on localhost by default."""
+    headers = {"Origin": origin} if origin else {}
+    return TestClient(
+        create_app(settings), base_url=base_url, headers=headers, client=(client_ip, 50000)
+    )
+
+
+def make_settings(**overrides: object) -> Settings:
+    return Settings(database_url=TEST_DATABASE_URL, **overrides)  # type: ignore[arg-type]
+
+
 @pytest.fixture
 def client(engine: Engine) -> Iterator[TestClient]:
-    with TestClient(create_app()) as client:
+    with make_client() as client:
         yield client
