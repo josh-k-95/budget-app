@@ -38,7 +38,7 @@ jobs:
       TEST_DATABASE_URL: postgresql+psycopg://budget:budget@localhost:5433/budget_test
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.4.0
         with:
           version: '0.9.30'
           python-version: '3.13'
