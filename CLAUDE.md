@@ -62,7 +62,7 @@ Keep this section accurate. Python commands run from `backend/`; npm commands fr
 | Full stack (Docker) | `cp .env.example .env` (edit), then `docker compose up -d --build` → http://localhost:8000 |
 | Dev: database only | `docker compose up -d db` |
 | Dev: backend | `cd backend && uv run alembic upgrade head && uv run uvicorn app.main:app --reload` |
-| Dev: frontend | `npm run dev` (Vite on :5173, proxies `/api` to :8000) |
+| Dev: frontend | `npm run dev` (Vite on :5173, proxies `/api` to :8000). Set `PUBLIC_URL=http://localhost:5173` in `.env` so the CSRF Origin check accepts the Vite origin |
 | Test DB | `docker compose --profile test up -d db-test` (Postgres on 127.0.0.1:5433) |
 | Backend tests | `cd backend && uv run pytest` (needs test DB; override with `TEST_DATABASE_URL`) |
 | Frontend + core tests | `npm test` |
@@ -72,7 +72,7 @@ Keep this section accurate. Python commands run from `backend/`; npm commands fr
 | Build frontend | `npm run build` |
 | New migration | `cd backend && uv run alembic revision --autogenerate -m "<message>"`, then review the file |
 | Apply migrations | `cd backend && uv run alembic upgrade head` (the app container does this on start) |
-| Admin CLI | `docker compose exec app python -m app.cli <command>` (reset-password arrives with auth) |
+| Reset a password | `docker compose exec app python -m app.cli reset-password <username>` (prompts twice; `--password-stdin` for scripts; signs the user out everywhere) |
 
 Notes: `npm` is configured with `min-release-age = 3`; `backend/pyproject.toml` mirrors it with uv `exclude-newer = "3 days"`.
 
@@ -114,6 +114,15 @@ Notes: `npm` is configured with `min-release-age = 3`; `backend/pyproject.toml` 
 - Logout deletes the session row.
 - State-changing requests: verify `Origin` header matches `PUBLIC_URL` (CSRF defense).
 - Rate limit login attempts per IP and per username (in-DB or in-memory; document the choice).
+  **Choice: in-memory** (`backend/app/auth/ratelimit.py`), sliding windows: failed logins 5 per
+  username (case-insensitive) and 20 per IP per 15 min; registrations 5 per IP per hour. Counters
+  reset on restart and are per process, so the app must run a single Uvicorn worker.
+- Per-IP limits use the client IP Uvicorn derives from `X-Forwarded-For`. Behind a proxy,
+  `FORWARDED_ALLOW_IPS` must list exactly the proxy's IP: too narrow and every client shares the
+  proxy's IP (one bad actor locks everyone out); `*` or too broad and clients can spoof their IP.
+- The `Origin` check applies to cookie-authenticated browser requests. Future bearer-token clients
+  (Android, 0.9.0) must be exempted explicitly for token-authenticated requests, never by loosening
+  the check for cookies.
 - `ALLOW_SIGNUP=false` blocks registration except when zero users exist (first user can always register).
 - Password reset: CLI command run inside the backend container.
 - Never log passwords, tokens, or cookie values.

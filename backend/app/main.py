@@ -4,6 +4,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 
 from app.api import api_router
+from app.auth.csrf import OriginCheckMiddleware
+from app.auth.ratelimit import RateLimits
 from app.config import Settings, get_settings
 
 
@@ -25,6 +27,7 @@ def _mount_frontend(app: FastAPI, dist: Path) -> None:
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
+    explicit = settings is not None
     settings = settings or get_settings()
     app = FastAPI(
         title=settings.app_name,
@@ -32,6 +35,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         redoc_url=None,
         openapi_url="/api/openapi.json",
     )
+    if explicit:
+        app.dependency_overrides[get_settings] = lambda: settings
+    app.state.rate_limits = RateLimits()
+    app.add_middleware(OriginCheckMiddleware, allowed_origin=settings.public_origin)
     app.include_router(api_router)
     _mount_frontend(app, settings.frontend_dist)
     return app
