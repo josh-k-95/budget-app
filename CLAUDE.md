@@ -54,7 +54,27 @@ CLAUDE.md
 
 ## Commands
 
-Fill this section in once the repo is scaffolded (run, test, lint, migrate, build, reset-password). Keep it accurate.
+Keep this section accurate. Python commands run from `backend/`; npm commands from the repo root.
+
+| Task | Command |
+|---|---|
+| Install deps | `npm install` · `cd backend && uv sync` |
+| Full stack (Docker) | `cp .env.example .env` (edit), then `docker compose up -d --build` → http://localhost:8000 |
+| Dev: database only | `docker compose up -d db` |
+| Dev: backend | `cd backend && uv run alembic upgrade head && uv run uvicorn app.main:app --reload` |
+| Dev: frontend | `npm run dev` (Vite on :5173, proxies `/api` to :8000) |
+| Test DB | `docker compose --profile test up -d db-test` (Postgres on 127.0.0.1:5433) |
+| Backend tests | `cd backend && uv run pytest` (needs test DB; override with `TEST_DATABASE_URL`) |
+| Frontend + core tests | `npm test` |
+| Lint / format (Python) | `cd backend && uv run ruff check . && uv run ruff format --check .` |
+| Lint / format (TS) | `npm run lint && npm run format:check` · fix: `npm run format` |
+| Typecheck | `npm run typecheck` |
+| Build frontend | `npm run build` |
+| New migration | `cd backend && uv run alembic revision --autogenerate -m "<message>"`, then review the file |
+| Apply migrations | `cd backend && uv run alembic upgrade head` (the app container does this on start) |
+| Admin CLI | `docker compose exec app python -m app.cli <command>` (reset-password arrives with auth) |
+
+Notes: `npm` is configured with `min-release-age = 3`; `backend/pyproject.toml` mirrors it with uv `exclude-newer = "3 days"`.
 
 ## Architecture rules (non-negotiable)
 

@@ -1,0 +1,18 @@
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Env / local
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
